@@ -20,3 +20,9 @@ Check for files that have been committed only by the specified Author.
 ```
 git analyze -search-only-target-author -author=<AUTHOR1> -author=<AUTHOR2> -author=<more...>
 ```
+
+The extension of the file to be analyzed can be specified as follows.
+
+```
+git analyze -ext=java,kt
+```
