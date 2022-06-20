@@ -1,4 +1,4 @@
-module iwata-n/git-analyze
+module tkhskt/git-analyze
 
 go 1.16
 

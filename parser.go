@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
+	"regexp"
+	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -28,8 +30,8 @@ func contains(s []string, e string) bool {
 	return false
 }
 
-func parseCommitLog(cIter object.CommitIter, depth int) (ParseResult, error) {
-	files := make(ParseResult)
+func parseCommitLog(cIter object.CommitIter, depth int, extensions []string) (ParseResult, error) {
+	files := make(ParseResult, 0, 0)
 	count := 0
 	err := cIter.ForEach(func(c *object.Commit) error {
 		// ignore marge commit
@@ -69,13 +71,16 @@ func parseCommitLog(cIter object.CommitIter, depth int) (ParseResult, error) {
 			dlog.Println(v)
 
 			path := FilePath(name(v))
+			if !match_extension(extensions, name(v)) {
+				continue
+			}
 			action, _ := v.Action()
 			var createBy string = ""
 			if action == merkletrie.Insert {
 				createBy = c.Author.Name
 			}
 
-			if val, ok := files[path]; ok {
+			if index, val := exists(path, files); val != nil {
 				dlog.Printf("exist %s", path)
 				if !contains(val.Authors, c.Author.Name) {
 					val.Authors = append(val.Authors, c.Author.Name)
@@ -84,15 +89,15 @@ func parseCommitLog(cIter object.CommitIter, depth int) (ParseResult, error) {
 				if createBy != "" {
 					val.CreateBy = createBy
 				}
-				files[path] = val
+				files[index] = *val
 			} else {
 				dlog.Printf("new file %s", path)
-				files[path] = CommitFile{
+				files = append(files, CommitFile{
 					Path:       path,
 					Authors:    []string{c.Author.Name},
 					CommitHash: []string{c.Hash.String()},
 					CreateBy:   createBy,
-				}
+				})
 			}
 		}
 		return nil
@@ -102,11 +107,21 @@ func parseCommitLog(cIter object.CommitIter, depth int) (ParseResult, error) {
 	return files, err
 }
 
+func exists(path FilePath, files ParseResult) (int, *CommitFile) {
+	for i, v := range files {
+		if path == v.Path {
+			return i, &v
+		}
+	}
+	return -1, nil
+}
+
 func parse(config Config) ParseResult {
 	dlog.Println("parse")
 	path := config.Path
 	outputFile := config.OutputFile
 	depth := config.Depth
+	extensions := parse_extensions(config.Extensions)
 
 	r, err := git.PlainOpen(path)
 	checkIfError(err)
@@ -117,7 +132,7 @@ func parse(config Config) ParseResult {
 	cIter, err := r.Log(&git.LogOptions{From: head.Hash(), Order: git.LogOrderCommitterTime})
 	checkIfError(err)
 
-	files, err := parseCommitLog(cIter, depth)
+	files, err := parseCommitLog(cIter, depth, extensions)
 	checkIfError(err)
 
 	j, err := json.Marshal(files)
@@ -144,4 +159,21 @@ func open_result(config Config) ParseResult {
 	json.Unmarshal(raw, &parseResult)
 
 	return parseResult
+}
+
+func parse_extensions(extensions string) []string {
+	extension_slice := strings.Split(extensions, ",")
+	if extension_slice[0] == "" {
+		extension_slice = []string{}
+	}
+	return extension_slice
+}
+
+func match_extension(extensions []string, path string) bool {
+	if len(extensions) == 0 {
+		return true
+	}
+	extensionsRegex := strings.Join(extensions, "|")
+	match, _ := regexp.MatchString(`^.*\.(`+extensionsRegex+`+)$`, path)
+	return match
 }

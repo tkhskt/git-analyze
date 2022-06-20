@@ -2,7 +2,7 @@ package main
 
 // file path
 type FilePath string
-type ParseResult map[FilePath]CommitFile
+type ParseResult []CommitFile
 
 type CommitFile struct {
 	// file path

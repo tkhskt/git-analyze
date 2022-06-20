@@ -14,7 +14,7 @@ func (i *ArgsAuthor) Set(value string) error {
 }
 
 type Config struct {
-	Branch, Path, OutputFile string
+	Branch, Path, OutputFile, Extensions string
 
 	Depth int
 
@@ -26,7 +26,7 @@ type Config struct {
 }
 
 func ParseArgs() Config {
-	var branch, path, outputFile string
+	var branch, path, outputFile, extensions string
 	var depth int
 	var isDebug, isShowProgress, isSearchOnlyTargetAuthor, isSkipParse bool
 	var sortCommitCount, sortPath bool
@@ -35,6 +35,7 @@ func ParseArgs() Config {
 	flag.StringVar(&branch, "branch", "master", "git branch")
 	flag.StringVar(&path, "path", "./", "repository path")
 	flag.StringVar(&outputFile, "parse-file", "", "result file")
+	flag.StringVar(&extensions, "ext", "", "target file extension")
 	flag.IntVar(&depth, "depth", -1, "commit depth")
 	flag.Var(&authors, "author", "author")
 	flag.BoolVar(&isDebug, "debug", false, "output debug message")
@@ -49,6 +50,7 @@ func ParseArgs() Config {
 		Branch:                   branch,
 		Path:                     path,
 		OutputFile:               outputFile,
+		Extensions:               extensions,
 		Depth:                    depth,
 		Authors:                  authors,
 		IsDebug:                  isDebug,
